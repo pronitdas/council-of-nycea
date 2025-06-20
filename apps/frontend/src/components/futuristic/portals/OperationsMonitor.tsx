@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useUAIP } from '../../contexts/UAIPContext';
+import { useUAIP } from '@/contexts/UAIPContext';
+import { motion } from 'framer-motion';
 import { OperationStatus, OperationPriority } from '@uaip/types';
 import { 
   CogIcon, 
@@ -100,7 +101,8 @@ export const OperationsMonitor: React.FC = () => {
 
   const getPriorityColor = (priority: OperationPriority | string) => {
     switch (priority) {
-      case OperationPriority.CRITICAL:
+      case OperationPriority.URGENT:
+      case 'urgent': 
       case 'critical': 
         return 'bg-red-500';
       case OperationPriority.HIGH:

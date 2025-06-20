@@ -47,7 +47,18 @@ import type {
   
   // LLM types
   LLMGenerationRequest,
-  LLMModel
+  LLMModel,
+  PersonaTemplate,
+  
+  // Knowledge Graph types
+  KnowledgeItem,
+  KnowledgeSearchRequest,
+  KnowledgeSearchResponse,
+  KnowledgeIngestRequest,
+  KnowledgeIngestResponse,
+  KnowledgeRelationship,
+  KnowledgeType,
+  SourceType
 } from '@uaip/types';
 
 // Import enums separately (not as type imports)
@@ -399,17 +410,12 @@ export const uaipAPI = {
   // ============================================================================
   
   personas: {
-    async list(filters?: PersonaSearchFilters): Promise<PersonaSearchResponse> {
+    async search(query?: string, expertise?: string): Promise<PersonaSearchResponse> {
       try {
         const client = getAPIClient();
-        const params = new URLSearchParams();
-        
-        if (filters?.query) params.append('query', filters.query);
-        if (filters?.expertise) params.append('expertise', filters.expertise.join(','));
-        if (filters?.status) params.append('status', filters.status);
-        if (filters?.tags) params.append('tags', filters.tags.join(','));
-        
-        const response = await client.get(`/personas/display?${params.toString()}`);
+       
+        const response = await client.personas.search(query, expertise);
+        console.log('🔍 Persona search response:', response);
         return {
           personas: response.data.data,
           total: response.data.pagination?.total || 0,
@@ -420,91 +426,38 @@ export const uaipAPI = {
         throw error;
       }
     },
-
-    async get(id: string): Promise<PersonaDisplay> {
-      try {
-        const client = getAPIClient();
-        const response = await client.get(`/personas/${id}/display`);
-        return response.data.data;
-      } catch (error) {
-        console.error(`Failed to fetch persona ${id}:`, error);
-        throw error;
-      }
+    async create(personaData: Partial<Persona>): Promise<Persona> {
+      const client = getAPIClient();
+      const response = await client.personas.create(personaData);
+      return response.data;
     },
-
-    async search(query?: string, expertise?: string): Promise<PersonaSearchResponse> {
-      try {
-        const client = getAPIClient();
-        const params = new URLSearchParams();
-        
-        if (query) params.append('query', query);
-        if (expertise) params.append('expertise', expertise);
-        
-        const response = await client.get(`/personas/search/simple?${params.toString()}`);
-        return {
-          personas: response.data.data,
-          total: response.data.data.length,
-          hasMore: false
-        };
-      } catch (error) {
-        console.error('Failed to search personas:', error);
-        throw error;
-      }
+    
+    async getTemplates(): Promise<PersonaTemplate[]> {
+      const client = getAPIClient();
+      const response = await client.personas.getTemplates();
+      return response.data;
     },
-
-    async getCategories(): Promise<string[]> {
-      try {
-        const client = getAPIClient();
-        const response = await client.get('/personas/categories');
-        return response.data.data;
-      } catch (error) {
-        console.error('Failed to fetch persona categories:', error);
-        throw error;
-      }
+    
+    async get(id: string): Promise<Persona> {
+      const client = getAPIClient();
+      const response = await client.personas.get(id);
+      return response.data;
     },
-
-    async create(persona: CreatePersonaRequest): Promise<Persona> {
-      try {
-        const client = getAPIClient();
-        const response = await client.post('/personas', persona);
-        return response.data.data;
-      } catch (error) {
-        console.error('Failed to create persona:', error);
-        throw error;
-      }
-    },
-
-    async update(id: string, updates: UpdatePersonaRequest): Promise<Persona> {
-      try {
-        const client = getAPIClient();
-        const response = await client.put(`/personas/${id}`, updates);
-        return response.data.data;
-      } catch (error) {
-        console.error(`Failed to update persona ${id}:`, error);
-        throw error;
-      }
+    
+    async update(id: string, updates: Partial<Persona>): Promise<Persona> {
+      const client = getAPIClient();
+      const response = await client.personas.update(id, updates);
+      return response.data;
     },
 
     async delete(id: string): Promise<void> {
-      try {
-        const client = getAPIClient();
-        await client.delete(`/personas/${id}`);
-      } catch (error) {
-        console.error(`Failed to delete persona ${id}:`, error);
-        throw error;
-      }
+      const client = getAPIClient();
+      const response = await client.personas.delete(id);
+      return response.data;
     },
+    
+    
 
-    async getRecommendations(id: string): Promise<PersonaRecommendation[]> {
-      try {
-        const client = getAPIClient();
-        const response = await client.get(`/personas/recommendations?userId=${id}`);
-        return response.data.data;
-      } catch (error) {
-        console.error('Failed to fetch persona recommendations:', error);
-        throw error;
-      }
-    }
   },
 
   // ============================================================================
@@ -1097,6 +1050,106 @@ export const uaipAPI = {
       
       if (!response.success) {
         throw new Error(response.error?.message || 'Failed to fetch pending approvals');
+      }
+      
+      return response.data!;
+    }
+  },
+
+
+
+  // Knowledge Graph System
+  knowledge: {
+    async uploadKnowledge(items: KnowledgeIngestRequest[]): Promise<KnowledgeIngestResponse> {
+      const client = getAPIClient();
+      const response = await client.knowledge.uploadKnowledge(items);
+      
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to upload knowledge');
+      }
+      
+      return response.data!;
+    },
+
+    async searchKnowledge(query: KnowledgeSearchRequest): Promise<KnowledgeSearchResponse> {
+      const client = getAPIClient();
+      const response = await client.knowledge.searchKnowledge(query);
+      
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to search knowledge');
+      }
+      
+      return response.data!;
+    },
+
+    async updateKnowledge(itemId: string, updates: Partial<KnowledgeItem>): Promise<KnowledgeItem> {
+      const client = getAPIClient();
+      const response = await client.knowledge.updateKnowledge(itemId, updates);
+      
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to update knowledge');
+      }
+      
+      return response.data!;
+    },
+
+    async deleteKnowledge(itemId: string): Promise<void> {
+      const client = getAPIClient();
+      const response = await client.knowledge.deleteKnowledge(itemId);
+      
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to delete knowledge');
+      }
+    },
+
+    async getKnowledgeStats(): Promise<{
+      totalItems: number;
+      itemsByType: Record<KnowledgeType, number>;
+      itemsBySource: Record<SourceType, number>;
+      recentActivity: Array<{
+        date: string;
+        uploads: number;
+        searches: number;
+      }>;
+    }> {
+      const client = getAPIClient();
+      const response = await client.knowledge.getKnowledgeStats();
+      
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to get knowledge stats');
+      }
+      
+      return response.data!;
+    },
+
+    async getRelatedKnowledge(itemId: string): Promise<KnowledgeItem[]> {
+      const client = getAPIClient();
+      const response = await client.knowledge.getRelatedKnowledge(itemId);
+      
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to get related knowledge');
+      }
+      
+      return response.data!;
+    },
+
+    async getKnowledgeByTag(tag: string): Promise<KnowledgeItem[]> {
+      const client = getAPIClient();
+      const response = await client.knowledge.getKnowledgeByTag(tag);
+      
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to get knowledge by tag');
+      }
+      
+      return response.data!;
+    },
+
+    async getKnowledgeItem(itemId: string): Promise<KnowledgeItem> {
+      const client = getAPIClient();
+      const response = await client.knowledge.getKnowledgeItem(itemId);
+      
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to get knowledge item');
       }
       
       return response.data!;
